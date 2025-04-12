@@ -12,10 +12,26 @@
   "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
+    "configuration": {
+      "type": "object",
+      "title": "CallViz Settings",
+      "properties": {
+        "callviz.jellyCommand": {
+          "type": "string",
+          "default": "jelly",
+          "description": "Path or command to invoke Jelly (e.g., 'jelly', '/usr/local/bin/jelly', or 'docker run ...')"
+        },
+        "callviz.analysisFlags": {
+          "type": "string",
+          "default": "-j cg.json",
+          "description": "Flags to pass to Jelly, e.g. '--approx -j cg.json'"
+        }
+      }
+    },
     "commands": [
       {
-        "command": "callviz-extension.helloWorld",
-        "title": "Hello World"
+        "command": "callviz.analyzeProject",
+        "title": "CallViz: Analyze Project"
       }
     ]
   },
