@@ -12,7 +12,7 @@ export function activate(context: vscode.ExtensionContext) {
 	// Register the "callviz.analyzeProject" command
 	const analyzeProjectCommand = vscode.commands.registerCommand('callviz.analyzeProject', async () => {
 		// This function is called when the user selects "CallViz: Analyze Project"
-		await analyzeWithJelly();
+		await analyzeWithJelly(context);
 	  });
 	
 	  context.subscriptions.push(analyzeProjectCommand);
@@ -21,7 +21,7 @@ export function activate(context: vscode.ExtensionContext) {
 // This method is called when your extension is deactivated
 export function deactivate() {}
 
-async function analyzeWithJelly(): Promise<void> {
+async function analyzeWithJelly(context: vscode.ExtensionContext): Promise<void> {
 	try {
 	  // 1. Get user workspace folder (or ask user for a file)
 	  const folders = vscode.workspace.workspaceFolders;
@@ -69,13 +69,39 @@ async function analyzeWithJelly(): Promise<void> {
 		// 6. Show a success message
 		vscode.window.showInformationMessage('Jelly analysis completed. Preparing to visualize the call graph...');
   
-		// 7. (Next step) Provide the data to a WebView or store it for further processing.
-		// For now, we’ll just log the number of nodes/edges, if it has them:
-		if (graphData && graphData.nodes && graphData.edges) {
-		  vscode.window.showInformationMessage(`Call graph has ${graphData.nodes.length} nodes and ${graphData.edges.length} edges.`);
-		}
+		// 7. Provide the data to a WebView or store it for further processing.
+		showCallGraphWebView(context, graphData);      
 	  });
 	} catch (err) {
 	  vscode.window.showErrorMessage(`Exception during analysis: ${(err as Error).message}`);
 	}
+  }
+
+  function showCallGraphWebView(context: vscode.ExtensionContext, graphData: any) {
+	const panel = vscode.window.createWebviewPanel(
+	  'callViz', 
+	  'Call Graph Visualization',
+	  vscode.ViewColumn.Two,
+	  {
+		enableScripts: true,
+	  }
+	);
+  
+	panel.webview.html = getWebviewContent(graphData);
+  }
+  
+  function getWebviewContent(graphData: any): string {  
+	return `
+	  <!DOCTYPE html>
+	  <html lang="en">
+	  <head>
+		<meta charset="UTF-8" />
+		<title>Call Graph</title>
+	  </head>
+	  <body>
+		<h2>Jelly Call Graph Visualization</h2>
+		<p>Graph data received successfully.</p>
+	  </body>
+	  </html>
+	`;
   }
