@@ -94,16 +94,16 @@ async function analyzeWithJelly(context: vscode.ExtensionContext): Promise<void>
 		<meta charset="UTF-8" />
 		<style>
 		  body, html {
-			margin: 0; 
-			padding: 0; 
-			width: 100%; 
+			margin: 0;
+			padding: 0;
+			width: 100%;
 			height: 100%;
 			font-family: sans-serif;
 		  }
 		  #cy {
 			width: 100%;
 			height: 100%;
-			background: #f5f5f5;
+			background: #ffffff;
 		  }
 		</style>
 		<script src="https://unpkg.com/cytoscape@3.24.0/dist/cytoscape.min.js"></script>
@@ -111,16 +111,100 @@ async function analyzeWithJelly(context: vscode.ExtensionContext): Promise<void>
 	  <body>
 		<div id="cy"></div>
 		<script>
+		  // Parsed Jelly call graph data
 		  const jellyData = ${JSON.stringify(graphData)};
+  
 		  const elements = [];
-		  
+  
+		  // Add function nodes (e.g., f0, f1, ...)
+		  if (jellyData.functions) {
+			for (const funcId in jellyData.functions) {
+			  elements.push({
+				data: {
+				  id: 'f' + funcId,
+				  label: jellyData.functions[funcId],
+				  type: 'function'
+				}
+			  });
+			}
+		  }
+  
+		  // Add call nodes (e.g., c0, c1, ...)
+		  if (jellyData.calls) {
+			for (const callId in jellyData.calls) {
+			  elements.push({
+				data: {
+				  id: 'c' + callId,
+				  label: jellyData.calls[callId],
+				  type: 'call'
+				}
+			  });
+			}
+		  }
+  
+		  // Add function-to-function edges
+		  if (jellyData.fun2fun) {
+			jellyData.fun2fun.forEach(([src, tgt]) => {
+			  elements.push({
+				data: {
+				  id: \`f\${src}-f\${tgt}\`,
+				  source: 'f' + src,
+				  target: 'f' + tgt
+				}
+			  });
+			});
+		  }
+  
+		  // Add call-to-function edges
+		  if (jellyData.call2fun) {
+			jellyData.call2fun.forEach(([callId, funcId]) => {
+			  elements.push({
+				data: {
+				  id: \`c\${callId}-f\${funcId}\`,
+				  source: 'c' + callId,
+				  target: 'f' + funcId
+				}
+			  });
+			});
+		  }
+  
 		  // Initialize Cytoscape
 		  const cy = cytoscape({
 			container: document.getElementById('cy'),
 			elements: elements,
 			layout: {
-			  name: 'cose',
-			}
+			  name: 'cose', // force-directed layout
+			  animate: true
+			},
+			style: [
+			  {
+				selector: 'node[type="function"]',
+				style: {
+				  'background-color': '#007acc',
+				  'label': 'data(id)',
+				  'color': '#fff',
+				  'text-outline-color': '#007acc',
+				  'text-outline-width': 2
+				}
+			  },
+			  {
+				selector: 'node[type="call"]',
+				style: {
+				  'background-color': '#f39c12',
+				  'label': 'data(id)',
+				  'color': '#fff',
+				  'text-outline-color': '#f39c12',
+				  'text-outline-width': 2
+				}
+			  },
+			  {
+				selector: 'edge',
+				style: {
+				  'width': 2,
+				  'line-color': '#888'
+				}
+			  }
+			]
 		  });
 		</script>
 	  </body>
