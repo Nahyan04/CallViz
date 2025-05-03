@@ -37,10 +37,10 @@ CallViz is a VS Code extension that uses **[Jelly](https://github.com/cs-au-dk/j
     
 ---
 ## 🐳 Docker
-
+```bash
   docker build -t callviz-docker .
   docker run -it --rm -v $(pwd):/callviz callviz-docker
-  
+```  
 ## Inside the container:
 ```bash
 jelly -j cg.json ./
