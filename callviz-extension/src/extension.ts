@@ -22,6 +22,8 @@ export function activate(context: vscode.ExtensionContext) {
 export function deactivate() {}
 
 async function analyzeWithJelly(context: vscode.ExtensionContext): Promise<void> {
+	const overallStart = Date.now();
+	const perFileStats: Record<string, any> = {};
 	try {
 	  // Get the current workspace directory
 	  const folders = vscode.workspace.workspaceFolders;
@@ -66,6 +68,68 @@ async function analyzeWithJelly(context: vscode.ExtensionContext): Promise<void>
 		  return;
 		}
   
+		// --- Per-file metrics ---
+		const files = graphData.files || [];
+		const functions = graphData.functions || {};
+		const calls = graphData.calls || {};
+		const fun2fun = graphData.fun2fun || [];
+		const call2fun = graphData.call2fun || [];
+		// Build incoming edge count for each function
+		const incomingCount: Record<string, number> = {};
+		fun2fun.forEach(([src, tgt]: [any, any]) => {
+		  incomingCount[tgt] = (incomingCount[tgt] || 0) + 1;
+		});
+		// For each file, gather stats
+		for (const file of files) {
+		  const fileStart = Date.now();
+		  // AST function count
+		  const astFuncs = masterFnMap[file] ? Object.keys(masterFnMap[file]).length : 0;
+		  // Graph function node count
+		  const graphFuncs = Object.entries(functions).filter(([fid, label]) => {
+			const parts = String(label).split(':');
+			return files[parseInt(parts[0], 10)] === file;
+		  }).length;
+		  // Call-site node count
+		  const callSites = Object.entries(calls).filter(([cid, label]) => {
+			const parts = String(label).split(':');
+			return files[parseInt(parts[0], 10)] === file;
+		  }).length;
+		  // Dead function count (zero incoming edges)
+		  const fileFuncIds = Object.entries(functions).filter(([fid, label]) => {
+			const parts = String(label).split(':');
+			return files[parseInt(parts[0], 10)] === file;
+		  }).map(([fid]) => fid);
+		  const deadFuncs = fileFuncIds.filter(fid => !incomingCount[fid]).length;
+		  const fileTime = Date.now() - fileStart;
+		  perFileStats[file] = {
+			time: fileTime,
+			astFuncs,
+			graphFuncs,
+			callSites,
+			deadFuncs
+		  };
+		}
+		const overallTime = Date.now() - overallStart;
+		// --- Write report ---
+		let report = '';
+		report += 'CallViz Evaluation Report\n';
+		report += '=========================\n\n';
+		report += 'OVERALL\n-------\n';
+		report += `Total time:       ${overallTime} ms\n\n`;
+		report += 'PER-FILE\n--------\n';
+		for (const file of files) {
+		  const stats = perFileStats[file];
+		  report += `${file}:\n`;
+		  report += `  Time:            ${stats.time} ms\n`;
+		  report += `  AST funcs:       ${stats.astFuncs}\n`;
+		  report += `  Graph funcs:     ${stats.graphFuncs}\n`;
+		  report += `  Call-site nodes: ${stats.callSites}\n`;
+		  report += `  Dead funcs:      ${stats.deadFuncs}\n\n`;
+		}
+		const evalPath = path.join(workspacePath, 'callviz-eval.txt');
+		fs.writeFileSync(evalPath, report, 'utf-8');
+		vscode.window.showInformationMessage('CallViz evaluation report written to callviz-eval.txt');
+
 		vscode.window.showInformationMessage('Jelly analysis completed. Preparing to visualize the call graph...');
   
 		// Provide data to WebView
