@@ -1,12 +1,12 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
+// Core VS Code APIs and node modules
 import * as vscode from 'vscode';
 import * as cp from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
+// Local utility to parse and map function metadata from source files
+import { buildFunctionNameMapForWorkspace } from './functionParser';
+
 export function activate(context: vscode.ExtensionContext) {
 
 	// Register the "callviz.analyzeProject" command
@@ -23,233 +23,351 @@ export function deactivate() {}
 
 async function analyzeWithJelly(context: vscode.ExtensionContext): Promise<void> {
 	try {
-	  // 1. Get user workspace folder (or ask user for a file)
+	  // Get the current workspace directory
 	  const folders = vscode.workspace.workspaceFolders;
 	  if (!folders || folders.length === 0) {
 		vscode.window.showErrorMessage('No workspace folder found. Please open a folder or workspace first.');
 		return;
 	  }
-	  // For simplicity, assume the first workspace folder is where we run analysis
 	  const workspacePath = folders[0].uri.fsPath;
   
-	  // 2. Retrieve settings (the user can customize them in VS Code)
+	  // Load user-defined Jelly path or fallback to 'jelly'
 	  const config = vscode.workspace.getConfiguration();
 	  const jellyCmd = config.get<string>('callviz.jellyCommand') || 'jelly'; // IMPLEMENT DOCKER JELLY CALL LATER**
-	  //const analysisFlags = config.get<string>('callviz.analysisFlags') || '-j cg.json';
-	  const cgJsonPath = path.join(workspacePath, 'cg.json');
-	  const analysisFlags = `-j ${cgJsonPath}`; // <-- modified to use absolute path
 
-	  // 3. Construct a command to run
-	  const cmd = `${jellyCmd} ${analysisFlags} ${workspacePath}`;
+	  // Generate absolute path to cg.json output
+	  const cgJsonPath = path.join(workspacePath, 'cg.json');
+	  const analysisFlags = -j ${cgJsonPath}; // <-- modified to use absolute path
+	  const cmd = ${jellyCmd} ${analysisFlags} ${workspacePath};
   
-	  vscode.window.showInformationMessage(`Running: ${cmd}`);
+	  vscode.window.showInformationMessage(Running: ${cmd});
   
-	  // 4. Spawn or exec Jelly
-	  cp.exec(cmd, (error, stdout, stderr) => {
+	  // Run Jelly and wait for it to complete
+	  cp.exec(cmd, async (error, stdout, stderr) => {
 		if (error) {
-		  vscode.window.showErrorMessage(`Jelly analysis failed: ${error.message}`);
+		  vscode.window.showErrorMessage(Jelly analysis failed: ${error.message});
 		  return;
 		}
   
 		if (!fs.existsSync(cgJsonPath)) {
-		  vscode.window.showErrorMessage(`No call graph JSON file found at ${cgJsonPath}`);
+		  vscode.window.showErrorMessage(No call graph JSON file found at ${cgJsonPath});
 		  return;
 		}
-  
-		// 5. Read the JSON file
+		 // Parse all source files to build a function name map for better labels
+		 const masterFnMap = await buildFunctionNameMapForWorkspace(workspacePath);
+
+		// Load the call graph JSON
 		const content = fs.readFileSync(cgJsonPath, 'utf-8');
 		let graphData: any;
 		try {
 		  graphData = JSON.parse(content);
 		} catch (parseError) {
-		  vscode.window.showErrorMessage(`Failed to parse call graph JSON: ${parseError}`);
+		  vscode.window.showErrorMessage(Failed to parse call graph JSON: ${parseError});
 		  return;
 		}
   
-		// 6. Show a success message
 		vscode.window.showInformationMessage('Jelly analysis completed. Preparing to visualize the call graph...');
   
-		// 7. Provide the data to a WebView or store it for further processing.
-		showCallGraphWebView(context, graphData);      
+		// Provide data to WebView
+		showCallGraphWebView(context, graphData, masterFnMap);      
 	  });
 	} catch (err) {
-	  vscode.window.showErrorMessage(`Exception during analysis: ${(err as Error).message}`);
+	  vscode.window.showErrorMessage(Exception during analysis: ${(err as Error).message});
 	}
   }
-
-  function showCallGraphWebView(context: vscode.ExtensionContext, graphData: any) {
-
-    const panel = vscode.window.createWebviewPanel(
-      'callViz', 
-      'Call Graph Visualization',
-      vscode.ViewColumn.Two,
-      {
-        enableScripts: true,
-      }
-    );
-  
-    // Set the HTML content for the panel
-    panel.webview.html = getWebviewContent(graphData);
+  // Launch a new WebView panel and inject the Cytoscape-based visualization
+  function showCallGraphWebView(context: vscode.ExtensionContext, graphData: any, masterFnMap: any) {
+	
+	const panel = vscode.window.createWebviewPanel(
+	  'callViz',
+	  'Call Graph Visualization',
+	  vscode.ViewColumn.Two,
+	  { enableScripts: true }
+	);
+	panel.webview.html = getWebviewContentCytoscape(graphData, masterFnMap);
   }
 
-  function getWebviewContent(graphData: any): string {  
-    return `
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8" />
-      <script src="https://d3js.org/d3.v7.min.js"></script>
-      <style>
-        /* styling */
-        body {
-          font-family: sans-serif;
-        }
-        .node circle {
-          fill: steelblue;
-          stroke: #fff;
-          stroke-width: 1.5px;
-        }
-        .link {
-          stroke: #999;
-          stroke-opacity: 0.6;
-        }
-        #graph {
-          width: 100%;
-          height: 100vh;
-        }
-      </style>
-    </head>
-    <body>
-      <h2>Jelly Call Graph Visualization</h2>
-      <div id="graph"></div>
+  function getWebviewContentCytoscape(
+  jellyData: any,
+  masterFnMap: Record<string, Record<number, { name: string; startLine: number; endLine: number; file: string; paramsString: string; }>>
+): string {
+  return 
+	<!DOCTYPE html>
+	<html>
+	  <head>
+		<meta charset="UTF-8" />
+		<style>
+		  body, html {
+			margin: 0;
+			padding: 0;
+			width: 100%;
+			height: 100%;
+			background: #1e1e1e;
+			font-family: sans-serif;
+			position: relative;
+		  }
+		  #cy {
+			width: 100%;
+			height: 100%;
+		  }
+		  #tooltip {
+			position: absolute;
+			display: none;
+			background-color: rgba(0, 0, 0, 0.75);
+			color: #fff;
+			padding: 6px 8px;
+			border-radius: 4px;
+			font-size: 13px;
+			pointer-events: none;
+			max-width: 250px;
+			z-index: 999;
+		  }
+		</style>
+		<script src="https://unpkg.com/cytoscape@3.24.0/dist/cytoscape.min.js"></script>
+	  </head>
+	  <body>
+		<div id="cy"></div>
+		<div id="tooltip"></div>
+		<script>
+		  // Embed the Jelly data and the Acorn function map
+		  const jellyData = ${JSON.stringify(jellyData)};
+		  const masterFnMap = ${JSON.stringify(masterFnMap)};
   
-      <script>
-        // raw Jelly call graph data
-        const jellyData = ${JSON.stringify(graphData)};
+		  // Get list of files from Jelly output.
+		  const filesArray = jellyData.files || [];
   
-        // Convert the Jelly structure into D3-friendly arrays: nodes[] and links[].
-        const nodes = [];
-        const links = [];
+		  // Builds set of function IDs based on fun2fun and call2fun (from Jelly cg.json)
+		  const usedFunctionIDs = new Set();
+		  if (jellyData.fun2fun) {
+			jellyData.fun2fun.forEach(([src, tgt]) => {
+			  usedFunctionIDs.add(src);
+			  usedFunctionIDs.add(tgt);
+			});
+		  }
+		  if (jellyData.call2fun) {
+			jellyData.call2fun.forEach(([callId, funcId]) => {
+			  usedFunctionIDs.add(funcId);
+			});
+		  }
   
-        if (jellyData.functions) {
-          for (const funcId in jellyData.functions) {
-            nodes.push({
-              id: 'f' + funcId,   // unique node ID, e.g. "f0"
-              label: jellyData.functions[funcId],
-              type: 'function'
-            });
-          }
-        }
+		  // Builds mapping from callId to target function id using call2fun
+		  const callToFunctionMap = {};
+		  if(jellyData.call2fun) {
+			jellyData.call2fun.forEach(([callId, funcId]) => {
+			  callToFunctionMap[callId] = funcId;
+			});
+		  }
   
-        // Extracts call IDs from jellyData.calls
-        if (jellyData.calls) {
-          for (const callId in jellyData.calls) {
-            nodes.push({
-              id: 'c' + callId,   // e.g. "c3"
-              label: jellyData.calls[callId],
-              type: 'call'
-            });
-          }
-        }
+		  // Helper to parse Jelly label to more redeable format
+		  function parseJellyLabel(label) {
+			const parts = label.split(':').map(x => parseInt(x, 10));
+			if (parts.length !== 5) {
+			  return null;
+			}
+			const [fileIndex, startLine, startCol, endLine, endCol] = parts;
+			const fileName = filesArray[fileIndex] || 'unknown';
+			return { fileName, startLine, startCol, endLine, endCol };
+		  }
   
-        // helper function to get node ID string for function or call
-        function funcNodeId(funcIndex) {
-          return 'f' + funcIndex; 
-        }
-        function callNodeId(callIndex) {
-          return 'c' + callIndex;
-        }
-
-        // Creates link
-        if (jellyData.fun2fun) {
-          jellyData.fun2fun.forEach(pair => {
-            const [sourceFunc, targetFunc] = pair;
-            links.push({
-              source: funcNodeId(sourceFunc),
-              target: funcNodeId(targetFunc)
-            });
-          });
-        }
+		  // Cytoscape elements array
+		  const elements = [];
+		  if (jellyData.functions) {
+			for (const funcIdStr in jellyData.functions) {
+			  const funcId = parseInt(funcIdStr, 10);
+			  const rawLabel = jellyData.functions[funcIdStr];
+			  const parsedLabel = parseJellyLabel(rawLabel);
   
-        if (jellyData.call2fun) {
-          jellyData.call2fun.forEach(pair => {
-            const [callIdx, funcIdx] = pair;
-            links.push({
-              source: callNodeId(callIdx),
-              target: funcNodeId(funcIdx)
-            });
-          });
-        }
+			  // Look up function info by file and startLine
+			  let fnInfo = null;
+			  if (parsedLabel) {
+				const fileMap = masterFnMap[parsedLabel.fileName];
+				if (fileMap) {
+				  fnInfo = fileMap[parsedLabel.startLine];
+				}
+			  }
+			  let displayName = fnInfo ? (fnInfo.name + fnInfo.paramsString) : 'Function @ ' + rawLabel;
+			  let locationInfo = fnInfo ? (fnInfo.file + ': ' + fnInfo.startLine + '–' + fnInfo.endLine) : 'Unknown Location';
+			  const reachable = usedFunctionIDs.has(funcId) ? 'Reachable' : 'Not Reachable';
   
-        // setup
-        const width = window.innerWidth;
-        const height = window.innerHeight;
+			  elements.push({
+				data: {
+				  id: 'f' + funcIdStr,
+				  type: 'function',
+				  reachable: reachable,
+				  displayName: displayName,
+				  locationInfo: locationInfo
+				}
+			  });
+			}
+		  }
+		  // Process call nodes
+		  if (jellyData.calls) {
+			for (const callIdStr in jellyData.calls) {
+			  const rawLabel = jellyData.calls[callIdStr];
+			  const parsedLabel = parseJellyLabel(rawLabel);
+			  let displayName = 'Call Site';
+			  let locationInfo = rawLabel;
+			  const callId = parseInt(callIdStr, 10);
   
-        const svg = d3.select("#graph")
-          .append("svg")
-          .attr("width", width)
-          .attr("height", height);
+			  // Use callToFunctionMap to find the target function
+			  if (callToFunctionMap[callId] !== undefined) {
+				const targetFuncId = callToFunctionMap[callId];
+				const rawFuncLabel = jellyData.functions[targetFuncId];
+				const parsedFuncLabel = parseJellyLabel(rawFuncLabel);
+				if (parsedFuncLabel) {
+				  const fileMap = masterFnMap[parsedFuncLabel.fileName];
+				  if (fileMap && fileMap[parsedFuncLabel.startLine]) {
+					displayName = 'Call of ' + fileMap[parsedFuncLabel.startLine].name;
+					locationInfo = fileMap[parsedFuncLabel.startLine].file + ': ' + parsedFuncLabel.startLine + '–' + parsedFuncLabel.endLine;
+				  }
+				}
+			  } else if (parsedLabel) {
+				// Fallback
+				const fileMap = masterFnMap[parsedLabel.fileName];
+				if (fileMap && fileMap[parsedLabel.startLine]) {
+				  displayName = 'Call of ' + fileMap[parsedLabel.startLine].name;
+				  locationInfo = fileMap[parsedLabel.startLine].file + ': ' + parsedLabel.startLine + '–' + parsedLabel.endLine;
+				}
+			  }
   
-        const simulation = d3.forceSimulation(nodes)
-          .force("charge", d3.forceManyBody().strength(-300))
-          .force("link", d3.forceLink(links).id(d => d.id).distance(150))
-          .force("center", d3.forceCenter(width / 2, height / 2));
+			  elements.push({
+				data: {
+				  id: 'c' + callIdStr,
+				  type: 'call',
+				  reachable: 'N/A',
+				  displayName: displayName,
+				  locationInfo: locationInfo
+				}
+			  });
+			}
+		  }
+		  // Build edges from fun2fun
+		  if (jellyData.fun2fun) {
+			jellyData.fun2fun.forEach(([src, tgt]) => {
+			  elements.push({
+				data: {
+				  id: 'f' + src + '-f' + tgt,
+				  source: 'f' + src,
+				  target: 'f' + tgt,
+				  asyncOrExternal: false
+				}
+			  });
+			});
+		  }
+		  // Build edges from call2fun
+		  if (jellyData.call2fun) {
+			jellyData.call2fun.forEach(([callId, funcId]) => {
+			  elements.push({
+				data: {
+				  id: 'c' + callId + '-f' + funcId,
+				  source: 'c' + callId,
+				  target: 'f' + funcId,
+				  asyncOrExternal: false
+				}
+			  });
+			});
+		  }
   
-        const link = svg.selectAll(".link")
-          .data(links)
-          .enter().append("line")
-          .attr("class", "link");
+		  // Initialize Cytoscape
+		  const cy = cytoscape({
+			container: document.getElementById('cy'),
+			elements: elements,
+			layout: {
+			  name: 'cose',
+			  animate: true
+			},
+			style: [
+			  // Function nodes as squares
+			  {
+				selector: 'node[type="function"]',
+				style: {
+				  'shape': 'square',
+				  'background-color': '#007acc',
+				  'label': 'data(displayName)',
+				  'font-size': '10px',
+				  'color': '#fff',
+				  'text-outline-color': '#007acc',
+				  'text-outline-width': 2
+				}
+			  },
+			  // Call nodes as green circles
+			  {
+				selector: 'node[type="call"]',
+				style: {
+				  'shape': 'ellipse',
+				  'background-color': 'green',
+				  'label': 'data(displayName)',
+				  'font-size': '10px',
+				  'color': '#fff',
+				  'text-outline-color': 'green',
+				  'text-outline-width': 2
+				}
+			  },
+			  // Edges with arrowheads
+			  {
+				selector: 'edge',
+				style: {
+				  'width': 2,
+				  'line-color': '#cccccc',
+				  'target-arrow-color': '#cccccc',
+				  'target-arrow-shape': 'triangle',
+				  'arrow-scale': 1.2,
+				  'curve-style': 'bezier'
+				}
+			  },
+			  {
+				selector: 'edge[asyncOrExternal = "true"]',
+				style: {
+				  'line-style': 'dashed'
+				}
+			  }
+			]
+		  });
   
-        const node = svg.selectAll(".node")
-          .data(nodes)
-          .enter().append("g")
-          .attr("class", "node")
-          .call(d3.drag()
-            .on("start", dragStarted)
-            .on("drag", dragged)
-            .on("end", dragEnded));
+		  // Tooltip logic
+		  const tooltip = document.getElementById('tooltip');
+		  let tappedNode = null;
   
-        node.append("circle")
-          .attr("r", 12)
-          .style("fill", d => d.type === 'function' ? 'steelblue' : 'orange');
+		  // show tooltip and highlight connected edges on mouse hover**
+		  cy.on('mouseover', 'node', (evt) => {
+			tappedNode = evt.target;
+			const d = tappedNode.data();
+			const tooltipText = \
+			  <strong>\${d.type === 'function' ? 'Function' : 'Call'}:</strong> \${d.displayName}<br>
+			  <strong>Location:</strong> \${d.locationInfo}<br>
+			  <strong>Reachable:</strong> \${d.reachable}
+			\;
+			tooltip.innerHTML = tooltipText;
+			tooltip.style.display = 'block';
   
-        node.append("title")
-          .text(d => d.label);
+			// Highlight connected edges
+			tappedNode.connectedEdges().forEach(edge => {
+			  edge.style('line-color', '#ffeb3b');
+			  edge.style('target-arrow-color', '#ffeb3b');
+			});
+		  });
   
-        node.append("text")
-          .attr("dy", -15)
-          .attr("text-anchor", "middle")
-          .text(d => d.id);
+		  cy.on('mouseout', 'node', (evt) => {
+			tooltip.style.display = 'none';
+			if (tappedNode) {
+			  tappedNode.connectedEdges().forEach(edge => {
+				edge.removeStyle('line-color');
+				edge.removeStyle('target-arrow-color');
+			  });
+			  tappedNode = null;
+			}
+		  });
   
-        simulation.on("tick", () => {
-          link
-            .attr("x1", d => d.source.x)
-            .attr("y1", d => d.source.y)
-            .attr("x2", d => d.target.x)
-            .attr("y2", d => d.target.y);
-  
-          node
-            .attr("transform", d => "translate(" + d.x + "," + d.y + ")");
-        });
-  
-        function dragStarted(event, d) {
-          if (!event.active) simulation.alphaTarget(0.3).restart();
-          d.fx = d.x;
-          d.fy = d.y;
-        }
-  
-        function dragged(event, d) {
-          d.fx = event.x;
-          d.fy = event.y;
-        }
-  
-        function dragEnded(event, d) {
-          if (!event.active) simulation.alphaTarget(0);
-          d.fx = null;
-          d.fy = null;
-        }
-      </script>
-    </body>
-    </html>
-    `;
-  }
+		  // Update tooltip position with mouse move
+		  cy.on('mousemove', (evt) => {
+			if (!tappedNode) return;
+			const pos = cy.renderer().projectIntoViewport(evt.position.x, evt.position.y);
+			const rect = cy.container().getBoundingClientRect();
+			tooltip.style.left = (rect.left + pos[0] + 5) + 'px';
+			tooltip.style.top = (rect.top + pos[1] + 5) + 'px';
+		  });
+		</script>
+	  </body>
+	</html>
+	;
+}
