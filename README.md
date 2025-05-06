@@ -15,7 +15,6 @@ CallViz is a Visual Studio Code extension that visualizes JavaScript call graphs
 - 🔍 **Search and Filter** interface
 - ☑️ **Toggle for Dead Code**
 - 📥 **Jump-to-Code** support – click any function node to open its definition in the editor
-- 🔄 **Call Path Tracing** between selected nodes
 - 📤 **Graph Export** as PNG and JSON
 
 ---
