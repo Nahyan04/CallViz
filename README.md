@@ -59,18 +59,6 @@ Then inside the container:
 
 ---
 
-## 📂 Project Structure
-'''
-callviz/
-├── extension.ts          # Main extension logic (runs Jelly, loads WebView)
-├── functionParser.ts     # Acorn-powered parser for source metadata
-├── cg.json               # Output from Jelly
-├── Dockerfile            # Optional containerized Jelly environment
-├── webview.html          # Dynamic Cytoscape WebView content
-└── README.md
-'''
----
-
 ## 🧠 How It Works
 
 1. **Run Jelly**: The extension executes Jelly on the project, outputting `cg.json`.
