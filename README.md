@@ -60,6 +60,7 @@ Then inside the container:
 ---
 
 ## 📂 Project Structure
+'''
 callviz/
 ├── extension.ts          # Main extension logic (runs Jelly, loads WebView)
 ├── functionParser.ts     # Acorn-powered parser for source metadata
@@ -67,7 +68,7 @@ callviz/
 ├── Dockerfile            # Optional containerized Jelly environment
 ├── webview.html          # Dynamic Cytoscape WebView content
 └── README.md
-
+'''
 ---
 
 ## 🧠 How It Works
