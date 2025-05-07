@@ -112,9 +112,7 @@ export async function buildFunctionNameMapForWorkspace(workspacePath: string): P
         walkDir(fullPath);
       } else if (entry.isFile() && (entry.name.endsWith('.js') || entry.name.endsWith('.ts'))) {
         try {
-          // Use relative path from workspace root, normalized to forward slashes
-          const relPath = path.relative(workspacePath, fullPath).replace(/\\/g, '/');
-          masterMap[relPath] = buildFunctionNameMapForFile(fullPath);
+          masterMap[entry.name] = buildFunctionNameMapForFile(fullPath);
         } catch (err) {
           console.error('Error parsing file', fullPath, err);
         }

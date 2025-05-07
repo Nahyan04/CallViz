@@ -14,7 +14,7 @@ export function activate(context: vscode.ExtensionContext) {
 		// This function is called when the user selects "CallViz: Analyze Project"
 		await analyzeWithJelly(context);
 	  });
-	
+
 	  context.subscriptions.push(analyzeProjectCommand);
 }
 
@@ -389,9 +389,70 @@ async function analyzeWithJelly(context: vscode.ExtensionContext): Promise<void>
 			  return { fileName, startLine, startCol, endLine, endCol };
 			}
 
+			// Helper to find the best matching function
+			function findBestMatchingFunction(fileName, startLine) {
+			  // Try exact filename match first
+			  let fileMap = masterFnMap[fileName];
+			  
+			  // If not found, try matching just the basename
+			  if (!fileMap) {
+				const baseName = fileName.split('/').pop();
+				for (const key in masterFnMap) {
+				  if (key.endsWith('/' + baseName) || key === baseName) {
+					fileMap = masterFnMap[key];
+					break;
+				  }
+				}
+			  }
+			  
+			  if (!fileMap) {
+				console.log('No file map found for:', fileName);
+				return null;
+			  }
+			  
+			  // First try exact match
+			  if (fileMap[startLine]) {
+				return fileMap[startLine];
+			  }
+			  
+			  // If no exact match, find the closest function that contains this line
+			  let bestMatch = null;
+			  let minDistance = Infinity;
+			  
+			  for (const line in fileMap) {
+				const fn = fileMap[line];
+				if (startLine >= fn.startLine && startLine <= fn.endLine) {
+				  const distance = Math.abs(startLine - fn.startLine);
+				  if (distance < minDistance) {
+					minDistance = distance;
+					bestMatch = fn;
+				  }
+				}
+			  }
+			  
+			  if (!bestMatch) {
+				console.log('No function match found for:', fileName, 'at line', startLine);
+			  }
+			  
+			  return bestMatch;
+			}
+
 			// Helper to truncate labels
 			function truncateLabel(label) {
 			  return label.length > 20 ? label.slice(0, 17) + '…' : label;
+			}
+
+			// Debug: Log the master function map
+			console.log('Master function map:', masterFnMap);
+
+			// Helper to check if a file should be excluded
+			function shouldExcludeFile(fileName) {
+			  return fileName.includes('/test/') || 
+					 fileName.includes('/tests/') || 
+					 fileName.includes('/__tests__/') ||
+					 fileName.startsWith('test/') ||
+					 fileName.endsWith('.test.js') ||
+					 fileName.endsWith('.spec.js');
 			}
 
 			// Cytoscape elements array
@@ -401,15 +462,29 @@ async function analyzeWithJelly(context: vscode.ExtensionContext): Promise<void>
 				const funcId = parseInt(funcIdStr, 10);
 				const rawLabel = jellyData.functions[funcIdStr];
 				const parsedLabel = parseJellyLabel(rawLabel);
-				let fnInfo = null;
-				if (parsedLabel) {
-				  const fileMap = masterFnMap[parsedLabel.fileName];
-				  if (fileMap) {
-					fnInfo = fileMap[parsedLabel.startLine];
-				  }
+				
+				// Skip test files
+				if (parsedLabel && shouldExcludeFile(parsedLabel.fileName)) {
+				  continue;
 				}
-				let displayName = fnInfo ? (fnInfo.name + fnInfo.paramsString) : 'Function @ ' + rawLabel;
-				let locationInfo = fnInfo ? (fnInfo.file + ': ' + fnInfo.startLine + '–' + fnInfo.endLine) : 'Unknown Location';
+				
+				let fnInfo = null;
+				let displayName = 'Unknown Function';
+				let locationInfo = rawLabel;
+				
+				if (parsedLabel) {
+				  console.log('Processing function:', parsedLabel.fileName, 'at line', parsedLabel.startLine);
+				  fnInfo = findBestMatchingFunction(parsedLabel.fileName, parsedLabel.startLine);
+				}
+				if (fnInfo) {
+				  displayName = fnInfo.name + fnInfo.paramsString;
+				  locationInfo = fnInfo.file + ': ' + fnInfo.startLine + '–' + fnInfo.endLine;
+				} else if (parsedLabel) {
+				  // If no function info found, create a more descriptive label
+				  displayName = 'Function in ' + parsedLabel.fileName + '@' + parsedLabel.startLine;
+				  locationInfo = parsedLabel.fileName + ': ' + parsedLabel.startLine + '–' + parsedLabel.endLine;
+				}
+				
 				const reachable = reachableFunctions.has(funcId) ? 'Reachable' : 'Not Reachable';
 				elements.push({
 				  data: {
@@ -420,18 +495,25 @@ async function analyzeWithJelly(context: vscode.ExtensionContext): Promise<void>
 					truncatedLabel: truncateLabel(displayName),
 					fullLabel: displayName,
 					locationInfo: locationInfo,
-					file: fnInfo ? fnInfo.file : null,
-					startLine: fnInfo ? fnInfo.startLine : null,
+					file: fnInfo ? fnInfo.file : parsedLabel?.fileName,
+					startLine: fnInfo ? fnInfo.startLine : parsedLabel?.startLine,
 					jellyId: funcIdStr
 				  }
 				});
 			  }
 			}
-			// Process call nodes
+			
+			// Also filter out test files from call nodes
 			if (jellyData.calls) {
 			  for (const callIdStr in jellyData.calls) {
 				const rawLabel = jellyData.calls[callIdStr];
 				const parsedLabel = parseJellyLabel(rawLabel);
+				
+				// Skip test files
+				if (parsedLabel && shouldExcludeFile(parsedLabel.fileName)) {
+				  continue;
+				}
+				
 				let displayName = 'Call Site';
 				let locationInfo = rawLabel;
 				const callId = parseInt(callIdStr, 10);
@@ -448,30 +530,50 @@ async function analyzeWithJelly(context: vscode.ExtensionContext): Promise<void>
 				});
 			  }
 			}
+			// Build a set of all function node IDs that were actually added
+			const functionNodeIds = new Set();
+			elements.forEach(el => {
+			  if (el.data && el.data.type === 'function') {
+				functionNodeIds.add(el.data.id);
+			  }
+			});
+
 			// Build edges from fun2fun
 			if (jellyData.fun2fun) {
 			  jellyData.fun2fun.forEach(([src, tgt]) => {
-				elements.push({
-				  data: {
-					id: 'f' + src + '-f' + tgt,
-					source: 'f' + src,
-					target: 'f' + tgt,
-					asyncOrExternal: false
-				  }
-				});
+				const srcId = 'f' + src;
+				const tgtId = 'f' + tgt;
+				if (functionNodeIds.has(srcId) && functionNodeIds.has(tgtId)) {
+				  elements.push({
+					data: {
+					  id: srcId + '-' + tgtId,
+					  source: srcId,
+					  target: tgtId,
+					  asyncOrExternal: false
+					}
+				  });
+				}
 			  });
 			}
 			// Build edges from call2fun
 			if (jellyData.call2fun) {
 			  jellyData.call2fun.forEach(([callId, funcId]) => {
-				elements.push({
-				  data: {
-					id: 'c' + callId + '-f' + funcId,
-					source: 'c' + callId,
-					target: 'f' + funcId,
-					asyncOrExternal: false
-				  }
-				});
+				const callNodeId = 'c' + callId;
+				const funcNodeId = 'f' + funcId;
+				// Only add if both nodes exist
+				if (
+				  elements.some(el => el.data && el.data.id === callNodeId) &&
+				  functionNodeIds.has(funcNodeId)
+				) {
+				  elements.push({
+					data: {
+					  id: callNodeId + '-' + funcNodeId,
+					  source: callNodeId,
+					  target: funcNodeId,
+					  asyncOrExternal: false
+					}
+				  });
+				}
 			  });
 			}
 
