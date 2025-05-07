@@ -3,7 +3,7 @@ CallViz Evaluation Report
 
 OVERALL
 -------
-Total time:       469 ms
+Total time:       507 ms
 
 PER-FILE
 --------

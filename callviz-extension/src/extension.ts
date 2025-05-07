@@ -14,7 +14,7 @@ export function activate(context: vscode.ExtensionContext) {
 		// This function is called when the user selects "CallViz: Analyze Project"
 		await analyzeWithJelly(context);
 	  });
-	
+
 	  context.subscriptions.push(analyzeProjectCommand);
 }
 
@@ -389,9 +389,70 @@ async function analyzeWithJelly(context: vscode.ExtensionContext): Promise<void>
 			  return { fileName, startLine, startCol, endLine, endCol };
 			}
 
+			// Helper to find the best matching function info
+			function findBestMatchingFunction(fileName, startLine) {
+			  // Try exact filename match first
+			  let fileMap = masterFnMap[fileName];
+			  
+			  // If not found, try matching just the basename
+			  if (!fileMap) {
+				const baseName = fileName.split('/').pop();
+				for (const key in masterFnMap) {
+				  if (key.endsWith('/' + baseName) || key === baseName) {
+					fileMap = masterFnMap[key];
+					break;
+				  }
+				}
+			  }
+			  
+			  if (!fileMap) {
+				console.log('No file map found for:', fileName);
+				return null;
+			  }
+			  
+			  // First try exact match
+			  if (fileMap[startLine]) {
+				return fileMap[startLine];
+			  }
+			  
+			  // If no exact match, find the closest function that contains this line
+			  let bestMatch = null;
+			  let minDistance = Infinity;
+			  
+			  for (const line in fileMap) {
+				const fn = fileMap[line];
+				if (startLine >= fn.startLine && startLine <= fn.endLine) {
+				  const distance = Math.abs(startLine - fn.startLine);
+				  if (distance < minDistance) {
+					minDistance = distance;
+					bestMatch = fn;
+				  }
+				}
+			  }
+			  
+			  if (!bestMatch) {
+				console.log('No function match found for:', fileName, 'at line', startLine);
+			  }
+			  
+			  return bestMatch;
+			}
+
 			// Helper to truncate labels
 			function truncateLabel(label) {
 			  return label.length > 20 ? label.slice(0, 17) + '…' : label;
+			}
+
+			// Debug: Log the master function map
+			console.log('Master function map:', masterFnMap);
+
+			// Helper to check if a file should be excluded
+			function shouldExcludeFile(fileName) {
+			  return fileName.includes('/test/') || 
+					 fileName.includes('/tests/') || 
+					 fileName.includes('/__tests__/') ||
+					 fileName.startsWith('test/') ||
+					 fileName.endsWith('.test.js') ||
+					 fileName.endsWith('.spec.js');
 			}
 
 			// Cytoscape elements array
@@ -401,15 +462,29 @@ async function analyzeWithJelly(context: vscode.ExtensionContext): Promise<void>
 				const funcId = parseInt(funcIdStr, 10);
 				const rawLabel = jellyData.functions[funcIdStr];
 				const parsedLabel = parseJellyLabel(rawLabel);
+				
+				// Skip test files
+				if (parsedLabel && shouldExcludeFile(parsedLabel.fileName)) {
+				  continue;
+				}
+				
 				let fnInfo = null;
+				let displayName = 'Unknown Function';
+				let locationInfo = rawLabel;
+				
 				if (parsedLabel) {
-				  const fileMap = masterFnMap[parsedLabel.fileName];
-				  if (fileMap) {
-					fnInfo = fileMap[parsedLabel.startLine];
+				  console.log('Processing function:', parsedLabel.fileName, 'at line', parsedLabel.startLine);
+				  fnInfo = findBestMatchingFunction(parsedLabel.fileName, parsedLabel.startLine);
+				  if (fnInfo) {
+					displayName = fnInfo.name + fnInfo.paramsString;
+					locationInfo = fnInfo.file + ': ' + fnInfo.startLine + '–' + fnInfo.endLine;
+				  } else {
+					// If no function info found, create a more descriptive label
+					displayName = 'Function in ' + parsedLabel.fileName + '@' + parsedLabel.startLine;
+					locationInfo = parsedLabel.fileName + ': ' + parsedLabel.startLine + '–' + parsedLabel.endLine;
 				  }
 				}
-				let displayName = fnInfo ? (fnInfo.name + fnInfo.paramsString) : 'Function @ ' + rawLabel;
-				let locationInfo = fnInfo ? (fnInfo.file + ': ' + fnInfo.startLine + '–' + fnInfo.endLine) : 'Unknown Location';
+				
 				const reachable = reachableFunctions.has(funcId) ? 'Reachable' : 'Not Reachable';
 				elements.push({
 				  data: {
@@ -420,18 +495,25 @@ async function analyzeWithJelly(context: vscode.ExtensionContext): Promise<void>
 					truncatedLabel: truncateLabel(displayName),
 					fullLabel: displayName,
 					locationInfo: locationInfo,
-					file: fnInfo ? fnInfo.file : null,
-					startLine: fnInfo ? fnInfo.startLine : null,
+					file: fnInfo ? fnInfo.file : parsedLabel?.fileName,
+					startLine: fnInfo ? fnInfo.startLine : parsedLabel?.startLine,
 					jellyId: funcIdStr
 				  }
 				});
 			  }
 			}
-			// Process call nodes
+			
+			// Also filter out test files from call nodes
 			if (jellyData.calls) {
 			  for (const callIdStr in jellyData.calls) {
 				const rawLabel = jellyData.calls[callIdStr];
 				const parsedLabel = parseJellyLabel(rawLabel);
+				
+				// Skip test files
+				if (parsedLabel && shouldExcludeFile(parsedLabel.fileName)) {
+				  continue;
+				}
+				
 				let displayName = 'Call Site';
 				let locationInfo = rawLabel;
 				const callId = parseInt(callIdStr, 10);
