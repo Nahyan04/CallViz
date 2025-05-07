@@ -1,0 +1,44 @@
+CallViz Evaluation Report
+=========================
+
+OVERALL
+-------
+Total time:       469 ms
+
+PER-FILE
+--------
+asyncOps.js:
+  Time:            1 ms
+  AST funcs:       4
+  Graph funcs:     6
+  Call-site nodes: 6
+  Dead funcs:      1
+
+classModule.js:
+  Time:            0 ms
+  AST funcs:       4
+  Graph funcs:     5
+  Call-site nodes: 6
+  Dead funcs:      1
+
+main.js:
+  Time:            0 ms
+  AST funcs:       5
+  Graph funcs:     6
+  Call-site nodes: 25
+  Dead funcs:      1
+
+mathUtils.js:
+  Time:            0 ms
+  AST funcs:       5
+  Graph funcs:     6
+  Call-site nodes: 6
+  Dead funcs:      1
+
+stringUtils.js:
+  Time:            0 ms
+  AST funcs:       3
+  Graph funcs:     4
+  Call-site nodes: 1
+  Dead funcs:      1
+
