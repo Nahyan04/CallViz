@@ -530,30 +530,50 @@ async function analyzeWithJelly(context: vscode.ExtensionContext): Promise<void>
 				});
 			  }
 			}
+			// Build a set of all function node IDs that were actually added
+			const functionNodeIds = new Set();
+			elements.forEach(el => {
+			  if (el.data && el.data.type === 'function') {
+				functionNodeIds.add(el.data.id);
+			  }
+			});
+
 			// Build edges from fun2fun
 			if (jellyData.fun2fun) {
 			  jellyData.fun2fun.forEach(([src, tgt]) => {
-				elements.push({
-				  data: {
-					id: 'f' + src + '-f' + tgt,
-					source: 'f' + src,
-					target: 'f' + tgt,
-					asyncOrExternal: false
-				  }
-				});
+				const srcId = 'f' + src;
+				const tgtId = 'f' + tgt;
+				if (functionNodeIds.has(srcId) && functionNodeIds.has(tgtId)) {
+				  elements.push({
+					data: {
+					  id: srcId + '-' + tgtId,
+					  source: srcId,
+					  target: tgtId,
+					  asyncOrExternal: false
+					}
+				  });
+				}
 			  });
 			}
 			// Build edges from call2fun
 			if (jellyData.call2fun) {
 			  jellyData.call2fun.forEach(([callId, funcId]) => {
-				elements.push({
-				  data: {
-					id: 'c' + callId + '-f' + funcId,
-					source: 'c' + callId,
-					target: 'f' + funcId,
-					asyncOrExternal: false
-				  }
-				});
+				const callNodeId = 'c' + callId;
+				const funcNodeId = 'f' + funcId;
+				// Only add if both nodes exist
+				if (
+				  elements.some(el => el.data && el.data.id === callNodeId) &&
+				  functionNodeIds.has(funcNodeId)
+				) {
+				  elements.push({
+					data: {
+					  id: callNodeId + '-' + funcNodeId,
+					  source: callNodeId,
+					  target: funcNodeId,
+					  asyncOrExternal: false
+					}
+				  });
+				}
 			  });
 			}
 
