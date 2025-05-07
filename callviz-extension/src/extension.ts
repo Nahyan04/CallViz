@@ -389,7 +389,7 @@ async function analyzeWithJelly(context: vscode.ExtensionContext): Promise<void>
 			  return { fileName, startLine, startCol, endLine, endCol };
 			}
 
-			// Helper to find the best matching function info
+			// Helper to find the best matching function
 			function findBestMatchingFunction(fileName, startLine) {
 			  // Try exact filename match first
 			  let fileMap = masterFnMap[fileName];
@@ -475,14 +475,14 @@ async function analyzeWithJelly(context: vscode.ExtensionContext): Promise<void>
 				if (parsedLabel) {
 				  console.log('Processing function:', parsedLabel.fileName, 'at line', parsedLabel.startLine);
 				  fnInfo = findBestMatchingFunction(parsedLabel.fileName, parsedLabel.startLine);
-				  if (fnInfo) {
-					displayName = fnInfo.name + fnInfo.paramsString;
-					locationInfo = fnInfo.file + ': ' + fnInfo.startLine + '–' + fnInfo.endLine;
-				  } else {
-					// If no function info found, create a more descriptive label
-					displayName = 'Function in ' + parsedLabel.fileName + '@' + parsedLabel.startLine;
-					locationInfo = parsedLabel.fileName + ': ' + parsedLabel.startLine + '–' + parsedLabel.endLine;
-				  }
+				}
+				if (fnInfo) {
+				  displayName = fnInfo.name + fnInfo.paramsString;
+				  locationInfo = fnInfo.file + ': ' + fnInfo.startLine + '–' + fnInfo.endLine;
+				} else if (parsedLabel) {
+				  // If no function info found, create a more descriptive label
+				  displayName = 'Function in ' + parsedLabel.fileName + '@' + parsedLabel.startLine;
+				  locationInfo = parsedLabel.fileName + ': ' + parsedLabel.startLine + '–' + parsedLabel.endLine;
 				}
 				
 				const reachable = reachableFunctions.has(funcId) ? 'Reachable' : 'Not Reachable';

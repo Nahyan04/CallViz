@@ -33,7 +33,7 @@ export function buildFunctionNameMapForFile(filePath: string): Record<number, Fu
         name: displayName,
         startLine,
         endLine,
-        file: filePath,
+        file: path.basename(filePath),
         paramsString: params
       };
     }
@@ -63,12 +63,6 @@ export function buildFunctionNameMapForFile(filePath: string): Record<number, Fu
             name = parent.key.name;
           } else if (parent.type === 'AssignmentExpression' && parent.left?.property?.name) {
             name = parent.left.property.name;
-          } else if (parent.type === 'AssignmentExpression' && parent.left?.name) {
-            name = parent.left.name;
-          } else if (parent.type === 'ExportDefaultDeclaration' && parent.declaration?.id?.name) {
-            name = parent.declaration.id.name;
-          } else if (parent.type === 'ExportNamedDeclaration' && parent.declaration?.id?.name) {
-            name = parent.declaration.id.name;
           }
         }
         const paramsString = node.params?.map((p: any) => source.substring(p.start, p.end)).join(', ') || '';
@@ -118,9 +112,7 @@ export async function buildFunctionNameMapForWorkspace(workspacePath: string): P
         walkDir(fullPath);
       } else if (entry.isFile() && (entry.name.endsWith('.js') || entry.name.endsWith('.ts'))) {
         try {
-          // Store with full path relative to workspace
-          const relativePath = path.relative(workspacePath, fullPath);
-          masterMap[relativePath] = buildFunctionNameMapForFile(fullPath);
+          masterMap[entry.name] = buildFunctionNameMapForFile(fullPath);
         } catch (err) {
           console.error('Error parsing file', fullPath, err);
         }
