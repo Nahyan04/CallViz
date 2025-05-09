@@ -80,6 +80,12 @@ Then inside the container:
 
 ---
 
+## 🧪 Replicating Results with 'test-callviz'
+
+- Open the folder named 'test-callviz', it contains sample json code for testing.
+- Press Cntrl+Shift+P and run command: > CallViz: Generate Call Graph
+- A visual Call Graph will be generated for the code inside test-callviz, and an evaluation report will be outputted in the same workspace.
+
 
 ## 📎 Acknowledgements
 
