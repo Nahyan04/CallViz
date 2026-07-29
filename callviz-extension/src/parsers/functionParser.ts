@@ -2,13 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as acorn from 'acorn';
 
-export interface FunctionInfo {
-  name: string;
-  startLine: number;
-  endLine: number;
-  file: string;
-  paramsString: string;
-}
+import { FunctionInfo } from '../graph/types';
 
 // Parse one file using Acorn and return a record keyed by startLine
 export function buildFunctionNameMapForFile(filePath: string): Record<number, FunctionInfo> {

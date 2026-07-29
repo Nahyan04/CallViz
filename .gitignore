@@ -134,3 +134,21 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# AI coding agent configuration
+AGENT.md
+CLAUDE.md
+.agent/
+.gemini/
+
+# macOS metadata
+.DS_Store
+*/.DS_Store
+
+# Generated analysis output
+cg.json
+callviz-eval.txt
+call-graph.png
+
+# Changelogs
+CHANGELOG.md

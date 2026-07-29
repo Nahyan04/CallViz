@@ -1,0 +1,99 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  height: 100vh;
+  background: var(--vscode-editor-background, #1e1e1e);
+  font-family: var(--vscode-font-family, sans-serif);
+  position: relative;
+  overflow: hidden;
+}
+#search-container {
+  width: 100%;
+  background: var(--vscode-editorWidget-background, #222);
+  padding: 10px 0 5px 0;
+  text-align: center;
+  z-index: 10;
+  position: relative;
+}
+#search-box {
+  width: 300px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--vscode-input-border, transparent);
+  font-size: 15px;
+  background: var(--vscode-input-background, #333);
+  color: var(--vscode-input-foreground, #fff);
+}
+#export-png {
+  margin-left: 20px;
+  padding: 6px 14px;
+  border-radius: 4px;
+  border: none;
+  background: var(--vscode-button-background, #007acc);
+  color: var(--vscode-button-foreground, #fff);
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+#export-png:hover {
+  background: var(--vscode-button-hoverBackground, #005fa3);
+}
+#file-filter-container {
+  width: 100%;
+  text-align: center;
+  margin: 8px 0 0 0;
+}
+#file-filter {
+  min-width: 220px;
+  max-width: 400px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: var(--vscode-input-background, #222);
+  color: var(--vscode-input-foreground, #fff);
+  font-size: 15px;
+  border: 1px solid var(--vscode-input-border, #444);
+}
+#cy {
+  width: 100vw;
+  height: calc(100vh - 55px);
+  min-height: 400px;
+  display: block;
+}
+#tooltip {
+  position: absolute;
+  display: none;
+  background-color: var(--vscode-editorHoverWidget-background, rgba(0, 0, 0, 0.85));
+  color: var(--vscode-editorHoverWidget-foreground, #fff);
+  padding: 6px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  pointer-events: none;
+  max-width: 350px;
+  z-index: 999;
+  box-shadow: 0 2px 8px #000a;
+}
+#sidebar {
+  position: absolute;
+  top: 60px;
+  right: 0;
+  width: 320px;
+  min-height: 120px;
+  background: var(--vscode-editorWidget-background, #23272e);
+  color: var(--vscode-editorWidget-foreground, #fff);
+  border-radius: 8px 0 0 8px;
+  box-shadow: -2px 0 12px #000a;
+  z-index: 1000;
+  padding: 18px 20px;
+  display: none;
+  font-size: 15px;
+  transition: box-shadow 0.2s;
+}
+#sidebar h3 {
+  margin: 0 0 10px 0;
+  font-size: 18px;
+  color: var(--vscode-textLink-foreground, #7ecfff);
+}
+#sidebar .sidebar-row {
+  margin-bottom: 8px;
+}
