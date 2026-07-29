@@ -9,16 +9,13 @@ import { buildFunctionNameMapForWorkspace } from './functionParser';
 
 export function activate(context: vscode.ExtensionContext) {
 
-	// Register the "callviz.analyzeProject" command
 	const analyzeProjectCommand = vscode.commands.registerCommand('callviz.analyzeProject', async () => {
-		// This function is called when the user selects "CallViz: Analyze Project"
 		await analyzeWithJelly(context);
 	  });
 
 	  context.subscriptions.push(analyzeProjectCommand);
 }
 
-// This method is called when your extension is deactivated
 export function deactivate() {}
 
 async function analyzeWithJelly(context: vscode.ExtensionContext): Promise<void> {
@@ -35,7 +32,7 @@ async function analyzeWithJelly(context: vscode.ExtensionContext): Promise<void>
   
 	  // Load user-defined Jelly path or fallback to 'jelly'
 	  const config = vscode.workspace.getConfiguration();
-	  const jellyCmd = config.get<string>('callviz.jellyCommand') || 'jelly'; // IMPLEMENT DOCKER JELLY CALL LATER**
+	  const jellyCmd = config.get<string>('callviz.jellyCommand') || 'jelly';
 
 	  // Generate absolute path to cg.json output
 	  const cgJsonPath = path.join(workspacePath, 'cg.json');
@@ -331,9 +328,6 @@ async function analyzeWithJelly(context: vscode.ExtensionContext): Promise<void>
 		<div id="tooltip"></div>
 		<script>
 		  const vscode = acquireVsCodeApi();
-		  // DEBUG: Log to ensure script is running
-		  console.log('Webview script loaded!');
-
 		  // Embed the Jelly data and the Acorn function map
 		  const jellyData = ${JSON.stringify(jellyData)};
 		  const masterFnMap = ${JSON.stringify(masterFnMap)};
@@ -441,9 +435,6 @@ async function analyzeWithJelly(context: vscode.ExtensionContext): Promise<void>
 			function truncateLabel(label) {
 			  return label.length > 20 ? label.slice(0, 17) + '…' : label;
 			}
-
-			// Debug: Log the master function map
-			console.log('Master function map:', masterFnMap);
 
 			// Helper to check if a file should be excluded
 			function shouldExcludeFile(fileName) {

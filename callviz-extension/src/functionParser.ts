@@ -15,7 +15,7 @@ export function buildFunctionNameMapForFile(filePath: string): Record<number, Fu
   const source = fs.readFileSync(filePath, 'utf-8');
   const ast = acorn.parse(source, {
     ecmaVersion: 'latest',
-    sourceType: 'module', // potentially might use 'script'..
+    sourceType: 'module',
     locations: true
   });
 
@@ -25,7 +25,6 @@ export function buildFunctionNameMapForFile(filePath: string): Record<number, Fu
   function recordFunction(name: string, startLine: number, endLine: number, params: string) {
     // check for duplicates
     if (!fnMap[startLine]) {
-      // If still not found, fallback..
       const displayName = name === '(anonymous)'
         ? `(anonymous: ${path.basename(filePath)}@${startLine})`
         : name;

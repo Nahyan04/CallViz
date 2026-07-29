@@ -1,9 +1,11 @@
 # Change Log
 
-All notable changes to the "callviz-extension" extension will be documented in this file.
-
-Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
+All notable changes to the CallViz extension will be documented in this file.
 
 ## [Unreleased]
-
-- Initial release
+- Updated README.md
+- Merge pull request #3 from Nahyan04/Finalizing-features
+- Fixed minor errors in viewing cfg
+- Fixed Function Name Allocator
+- Fixed function inline locator
+- Minor tweaks on responsiveness and evaluation logic
