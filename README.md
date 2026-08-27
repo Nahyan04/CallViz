@@ -4,22 +4,22 @@ CallViz is a Visual Studio Code extension that visualizes JavaScript call graphs
 
 ---
 
-## ✨ Features
+## Features
 
-- 📊 **Call Graph Generation** via static analysis (Jelly)
-- 🧠 **Function Name Recovery** using Acorn (accurate, readable labels)
-- 🧭 **Reachability Detection** (detect dead/unreachable code)
-- 🎨 **Custom Node Styling** for functions (🟦), call sites (🟢), and dead code (gray dashed)
-- 💬 **Interactive Tooltips** with file/line info, parameters, and reachability
-- 🖱️ **Edge Highlighting** on node hover
-- 🔍 **Search and Filter** interface
-- ☑️ **Toggle for Dead Code**
-- 📥 **Jump-to-Code** support – click any function node to open its definition in the editor
-- 📤 **Graph Export** as PNG and JSON
+- **Call Graph Generation** via static analysis (Jelly)
+- **Function Name Recovery** using Acorn (accurate, readable labels)
+- **Reachability Detection** (detect dead/unreachable code)
+- **Custom Node Styling** for functions (🟦), call sites (🟢), and dead code (gray dashed)
+- **Interactive Tooltips** with file/line info, parameters, and reachability
+- **Edge Highlighting** on node hover
+- **Search and Filter** interface
+- **Toggle for Dead Code**
+- **Jump-to-Code** support – click any function node to open its definition in the editor
+- **Graph Export** as PNG and JSON
 
 ---
 
-## 📦 Installation
+## Installation
 
 ### 1. Install Prerequisites
 
@@ -46,7 +46,7 @@ In VS Code:
 
 ---
 
-## 🐳 Docker Usage (Optional)
+## Docker Usage (Optional)
 
 To run Jelly inside Docker instead of installing globally:
 
@@ -59,7 +59,7 @@ Then inside the container:
 
 ---
 
-## 🧠 How It Works
+## How It Works
 
 1. **Run Jelly**: The extension executes Jelly on the project, outputting `cg.json`.
 2. **Parse Source Files**: It uses Acorn to parse all `.js` and `.ts` files in the workspace, recovering function names, parameters, and positions.
@@ -68,7 +68,7 @@ Then inside the container:
 
 ---
 
-## 🔧 Developer UX Features
+## Developer UX Features
 
 - Click a node → jump to the source function in your editor
 - Hover over nodes → see detailed metadata (function name, file, reachability)
@@ -80,14 +80,14 @@ Then inside the container:
 
 ---
 
-## 🧪 Replicating Results with 'test-callviz'
+## Replicating Results with 'test-callviz'
 
 - Open the folder named 'test-callviz', it contains sample json code for testing.
 - Press Cntrl+Shift+P and run command: > CallViz: Generate Call Graph
 - A visual Call Graph will be generated for the code inside test-callviz, and an evaluation report will be outputted in the same workspace.
 
 
-## 📎 Acknowledgements
+## Acknowledgements
 
 - [Jelly](https://github.com/cs-au-dk/jelly) – Static analyzer for JavaScript
 - [Acorn](https://github.com/acornjs/acorn) – Lightweight JS parser
